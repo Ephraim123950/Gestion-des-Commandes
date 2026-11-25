@@ -737,3 +737,143 @@ body.auth::before {
 .social-twitter  { background: #1da1f2; }
 
 .social-btn:hover { opacity: 0.85; }
+
+/* ===== Responsive — adaptation à tous les écrans ===== */
+
+/* Grandes solutions desktop : plus d'espace */
+@media (min-width: 1400px) {
+  .content {
+    max-width: 1500px;
+    padding: 44px 64px;
+  }
+}
+
+/* Tablettes et petits laptops */
+@media (max-width: 1100px) {
+  .content {
+    padding: 28px 26px;
+  }
+  .form-card {
+    padding: 22px;
+  }
+}
+
+/* Mobiles et très petits écrans */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  /* Tableaux défilables horizontalement au lieu de casser la mise en page */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .content {
+    padding: 18px 14px;
+    max-width: 100%;
+  }
+
+  .sidebar {
+    padding-bottom: 8px;
+  }
+
+  .brand {
+    padding: 14px 16px 6px;
+  }
+
+  .side-nav {
+    padding: 6px 10px;
+    gap: 4px;
+  }
+
+  /* Liens tactiles plus grands sur mobile */
+  .side-nav a {
+    padding: 10px 12px;
+    font-size: .88em;
+  }
+
+  .sidebar-footer {
+    width: 100%;
+    padding: 10px 16px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 16px 0;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .card-num {
+    font-size: 1.5em;
+  }
+
+  .form-card {
+    padding: 18px 16px;
+  }
+
+  .login-box {
+    padding: 30px 22px;
+    margin: 14px;
+    border-radius: 16px;
+  }
+
+  .login-box h1 {
+    font-size: 1.2em;
+  }
+
+  .demo-accounts {
+    font-size: .74em;
+  }
+
+  button,
+  .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 13px 18px;
+    font-size: 1em;
+  }
+
+  .row-form select {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-size: 1.25em;
+  }
+
+  th,
+  td {
+    padding: 10px 12px;
+  }
+}
+
+/* Très petits écrans (iPhone SE, etc.) */
+@media (max-width: 380px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .filters a {
+    padding: 7px 10px;
+    font-size: .8em;
+  }
+}
+
+/* Impression : masquer la navigation */
+@media print {
+  .sidebar,
+  .filters,
+  button,
+  .btn {
+    display: none !important;
+  }
+}
