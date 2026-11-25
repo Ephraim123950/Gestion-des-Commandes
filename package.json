@@ -1,0 +1,15 @@
+{
+  "name": "gestion-commandes",
+  "version": "0.1.0",
+  "description": "Système de gestion de commandes par messagerie - Version minimale (étape 2)",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "init-db": "node scripts/init-db.js",
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3"
+  }
+}

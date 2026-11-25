@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CommandesPro — Gestion des commandes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="public/style.css">
+</head>
+<body class="auth">
+
+<!-- ================= ÉCRAN DE CONNEXION ================= -->
+<div id="screen-login" class="login-box">
+  <h1><span>📦</span> Commandes<b style="color:var(--primary)">Pro</b></h1>
+  <p class="muted">Connectez-vous pour accéder à votre espace.</p>
+  <form id="login-form">
+    <label>Email</label><input type="email" id="login-email" required placeholder="marie@elegance.cd">
+    <label>Mot de passe</label><input type="password" id="login-password" required placeholder="••••••••">
+    <button type="submit">Se connecter</button>
+    <p id="login-error" class="error" hidden>Email ou mot de passe incorrect.</p>
+  </form>
+  <div class="demo-accounts">
+    <strong>Comptes de démonstration :</strong>
+    <ul>
+      <li>Admin produit : admin@demo.cd / admin123 <em>(voit toutes les entreprises)</em></li>
+      <li>Elegance Boutique — Propriétaire : marie@elegance.cd / marie123</li>
+      <li>Elegance Boutique — Agent : jean@elegance.cd / jean123</li>
+      <li>Elegance Boutique — Livreur : patrick@elegance.cd / patrick123</li>
+      <li>Kin Perfumery — Propriétaire : chantal@kinperfumery.cd / chantal123</li>
+      <li>Kin Perfumery — Livreur : serge@kinperfumery.cd / serge123</li>
+      <li>Beauty Store Goma — Propriétaire : aline@beautygoma.cd / aline123</li>
+      <li>Beauty Store Goma — Livreur : david@beautygoma.cd / david123</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ================= APPLICATION ================= -->
+<div id="app" hidden>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-icon">📦</span><span class="brand-text">Commandes<b>Pro</b></span></div>
+    <div class="company-name" id="side-company"></div>
+    <nav class="side-nav" id="side-nav"></nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="side-avatar"></div>
+      <div class="user-meta"><strong id="side-name"></strong><small id="side-role"></small></div>
+      <a href="#" class="logout" title="Déconnexion" onclick="doLogout();return false">⏻</a>
+    </div>
+  </aside>
+
+  <main class="content" id="page"></main>
+</div>
+
+<script>
+/* ================= Données de démonstration (localStorage) ================= */
+const STATUS = {
+  nouvelle: 'Nouvelle',
+  attente_confirmation: 'En attente de confirmation',
+  attente_paiement: 'En attente de paiement',
+  confirmee: 'Confirmée',
+  preparation: 'En préparation',
+  livraison: 'En livraison',
+  livree: 'Livrée',
+  annulee: 'Annulée',
+};
+const STATUS_ORDER = Object.keys(STATUS);
+const fmt = n => Number(n).toLocaleString('fr-FR') + ' $';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toISOString().slice(0,10);
+const tomorrow = () => new Date(Date.now()+86400000).toISOString().slice(0,10);
+
+const DEMO = {
+  companies: [
+    { id: 1, name: 'Elegance Boutique', subscription_status: 'actif', subscription_plan: 'Pro', trial_end: null },
+    { id: 2, name: 'Kin Perfumery', subscription_status: 'essai', subscription_plan: 'Essai', trial_end: '2026-12-01' },
+    { id: 3, name: 'Beauty Store Goma', subscription_status: 'actif', subscription_plan: 'Starter', trial_end: null },
+  ],
+  users: [
+    { id: 1, company_id: 0, name: 'Admin Produit', email: 'admin@demo.cd', role: 'admin', password: 'admin123' },
+    { id: 2, company_id: 1, name: 'Marie Kabila', email: 'marie@elegance.cd', role: 'owner', password: 'marie123' },
+    { id: 3, company_id: 1, name: 'Jean Lutumba', email: 'jean@elegance.cd', role: 'agent', password: 'jean123' },
+    { id: 4, company_id: 1, name: 'Patrick Mokonzi', email: 'patrick@elegance.cd', role: 'livreur', password: 'patrick123' },
+    { id: 5, company_id: 2, name: 'Chantal Ngoy', email: 'chantal@kinperfumery.cd', role: 'owner', password: 'chantal123' },
+    { id: 6, company_id: 2, name: 'Serge Bemba', email: 'serge@kinperfumery.cd', role: 'livreur', password: 'serge123' },
+    { id: 7, company_id: 3, name: 'Aline Kambale', email: 'aline@beautygoma.cd', role: 'owner', password: 'aline123' },
+    { id: 8, company_id: 3, name: 'David Paluku', email: 'david@beautygoma.cd', role: 'livreur', password: 'david123' },
+  ],
+  products: [
+    { id: 1, company_id: 1, name: 'Robe Wax Élégance', price: 45, description: 'Robe en tissu wax, coupe ajustée' },
+    { id: 2, company_id: 1, name: 'Chemise Lin', price: 30, description: 'Chemise homme en lin, plusieurs coloris' },
+    { id: 3, company_id: 1, name: 'Boubou Brodé', price: 75, description: 'Boubou traditionnel brodé main' },
+    { id: 4, company_id: 2, name: 'Eau de parfum Zawadi 50ml', price: 60, description: 'Parfum floral made in Kinshasa' },
+    { id: 5, company_id: 2, name: 'Huile de coco pure 250ml', price: 15, description: 'Pressée à froid' },
+    { id: 6, company_id: 3, name: 'Coffret soins visage', price: 50, description: 'Gel nettoyant + sérum + crème' },
+    { id: 7, company_id: 3, name: 'Rouge à lèvres mat', price: 12, description: 'Tenue longue durée' },
+  ],
+  variants: [
+    { id: 1, product_id: 1, size: 'S', color: 'Rouge', stock: 12 },
+    { id: 2, product_id: 1, size: 'M', color: 'Bleu', stock: 8 },
+    { id: 3, product_id: 2, size: 'L', color: 'Blanc', stock: 20 },
+    { id: 4, product_id: 3, size: '—', color: 'Or', stock: 5 },
+    { id: 5, product_id: 4, size: '50ml', color: '—', stock: 30 },
+    { id: 6, product_id: 7, size: '—', color: 'Rouge carmin', stock: 40 },
+  ],
+  zones: [
+    { id: 1, company_id: 1, name: 'Gombe', fee: 5 },
+    { id: 2, company_id: 1, name: 'Limete', fee: 3 },
+    { id: 3, company_id: 1, name: 'Ngaliema', fee: 4 },
+    { id: 4, company_id: 2, name: 'Kintambo', fee: 4 },
+    { id: 5, company_id: 2, name: 'Masina', fee: 6 },
+    { id: 6, company_id: 3, name: 'Goma centre', fee: 5 },
+    { id: 7, company_id: 3, name: 'Katindo', fee: 3 },
+  ],
+};
+
+function seedOrders() {
+  const mk = (id, cid, client, phone, items, amount, zone, addr, date, courier, status, notes) =>
+    ({ id, company_id: cid, client_name: client, client_phone: phone, items, amount, zone_id: zone,
+       address: addr, delivery_date: date, courier_id: courier, status, notes: notes || '',
+       created_at: '2026-11-20 09:15', history: [] });
+  return [
+    mk(108, 1, 'Josué Mbemba', '+243 81 234 5678', [{product_id:2,name:'Chemise Lin',qty:2,unit_price:30,size:'L',color:'Blanc'}], 85, 1, 'Av. de la Justice 12', tomorrow(), 4, 'nouvelle'),
+    mk(107, 1, 'Fantine Ilunga', '+243 89 876 5432', [{product_id:1,name:'Robe Wax Élégance',qty:2,unit_price:45,size:'M',color:'Bleu'}], 130, 2, 'Bd Kasa-Vubu 45', tomorrow(), null, 'attente_confirmation'),
+    mk(106, 1, 'Didier Tshisekedi', '+243 85 555 1212', [{product_id:3,name:'Boubou Brodé',qty:1,unit_price:75}], 120, 3, 'Rg Poids Lourds 8', tomorrow(), 4, 'attente_paiement'),
+    mk(105, 1, 'Grace Mbuyi', '+243 89 876 5432', [{product_id:1,name:'Robe Wax Élégance',qty:4,unit_price:45,size:'S',color:'Rouge'}], 210, 2, 'Av. Kimbangu 77', tomorrow(), 4, 'confirmee'),
+    mk(104, 1, 'Patrick Nkosi', '+243 82 111 2233', [{product_id:2,name:'Chemise Lin',qty:1,unit_price:30,size:'M',color:'Bleu'}], 45, 1, 'Rd COL. Mondjiba 300', tomorrow(), null, 'preparation'),
+    mk(103, 1, 'Sarah Kalala', '+243 84 999 0001', [{product_id:1,name:'Robe Wax Élégance',qty:2,unit_price:45,size:'M',color:'Rouge'}], 95, 3, 'Av. des Nyong 5', today(), 4, 'livraison'),
+    mk(102, 1, 'Emmanuel Bemba', '+243 81 444 7788', [{product_id:3,name:'Boubou Brodé',qty:2,unit_price:75}], 150, 2, 'Av. Lundas 21', '2026-11-23', 4, 'livree'),
+    mk(101, 1, 'Nadia Lofoho', '+243 87 333 9090', [{product_id:2,name:'Chemise Lin',qty:2,unit_price:30,size:'L',color:'Blanc'}], 70, 1, 'Av. Kasa-Vubu 2', '2026-11-23', null, 'annulee'),
+    mk(109, 2, 'Béatrice Mwamba', '+243 82 700 1010', [{product_id:4,name:'Eau de parfum Zawadi 50ml',qty:2,unit_price:60}], 130, 4, 'Av. Kamanyola 9', tomorrow(), 6, 'confirmee'),
+    mk(110, 2, 'Hervé Kabembe', '+243 85 700 2020', [{product_id:5,name:'Huile de coco pure 250ml',qty:4,unit_price:15}], 66, 5, 'Rd Kimbanguiste 14', tomorrow(), null, 'attente_confirmation'),
+    mk(111, 2, 'Léa Tumaini', '+243 89 700 3030', [{product_id:4,name:'Eau de parfum Zawadi 50ml',qty:1,unit_price:60}], 64, 4, 'Av. Safari 3', today(), 6, 'livraison'),
+    mk(112, 3, 'Moïse Bisimwa', '+243 81 900 4040', [{product_id:6,name:'Coffret soins visage',qty:1,unit_price:50}], 55, 6, 'Av. des Volcans 22', tomorrow(), 8, 'confirmee'),
+    mk(113, 3, 'Sarah Kahindo', '+243 84 900 5050', [{product_id:7,name:'Rouge à lèvres mat',qty:2,unit_price:12,size:'—',color:'Rouge carmin'}], 27, 7, 'Av. des Bruxelles 5', tomorrow(), null, 'nouvelle'),
+  ];
+}
+
+const KEY = 'commandespro-demo';
+const VERSION = 3; // incrémenter pour re-seeder les données de démo
+let state = null;
+
+function load() {
+  const raw = localStorage.getItem(KEY);
+  let ok = false;
+  if (raw) {
+    try {
+      const s = JSON.parse(raw);
+      if (s && s.v === VERSION && s.users && s.orders && s.companies) { state = s; ok = true; }
+    } catch { }
+  }
+  if (!ok) {
+    state = {
+      v: VERSION,
+      user: null,
+      companies: DEMO.companies,
+      users: DEMO.users,
+      products: DEMO.products,
+      variants: DEMO.variants,
+      zones: DEMO.zones,
+      orders: seedOrders(),
+      nextId: 114,
+    };
+    save();
+  }
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+/* ================= Session ================= */
+function doLogin(email, password) {
+  const u = state.users.find(u => u.email === email && u.password === password);
+  if (!u) return false;
+  state.user = u.id; save();
+  return true;
+}
+function doLogout() { state.user = null; save(); showLogin(); }
+function me() { return state.users.find(u => u.id === state.user); }
+function myCompany() {
+  const u = me();
+  return state.companies.find(c => c.id === u.company_id) || { name: 'Vue globale — toutes les entreprises' };
+}
+
+/* ================= Navigation ================= */
+let current = '/';
+
+function navigate(route) {
+  current = route;
+  if (!me()) return showLogin();
+  showApp();
+  render();
+  document.querySelectorAll('.side-nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.route === route);
+  });
+  window.scrollTo(0, 0);
+}
+
+function showLogin() {
+  document.getElementById('app').hidden = true;
+  document.getElementById('screen-login').hidden = false;
+  document.body.className = 'auth';
+}
+function showApp() {
+  document.getElementById('screen-login').hidden = true;
+  document.getElementById('app').hidden = false;
+  document.body.className = 'app';
+  const u = me();
+  document.getElementById('side-company').textContent =
+    u.role === 'admin' ? 'Vue globale — toutes les entreprises' : myCompany().name;
+  document.getElementById('side-avatar').textContent = u.name.trim().charAt(0).toUpperCase();
+  document.getElementById('side-name').textContent = u.name;
+  document.getElementById('side-role').textContent = u.role;
+  const nav = u.role === 'livreur'
+    ? [['/livraisons', 'Mes livraisons', '🚚']]
+    : [['/','Tableau de bord','📊'],['/commandes','Commandes','🧾'],['/livraisons','Livraisons de demain','🚚'],['/catalogue','Catalogue & réglages','🏷️'],['/equipe','Équipe','👥']]
+        .concat(u.role === 'admin' ? [['/admin','Administration','⚙️']] : []);
+  document.getElementById('side-nav').innerHTML = nav
+    .map(([r, l, i]) => `<a href="${r}" data-route="${r}" onclick="navigate('${r}');return false"><span class="icon">${i}</span>${l}</a>`)
+    .join('');
+}
+
+/* ================= Rendu ================= */
+function render() {
+  const page = document.getElementById('page');
+  const u = me();
+  if (u.role === 'livreur' && current !== '/livraisons') current = '/livraisons';
+  if (u.role !== 'admin' && current === '/admin') current = '/';
+  if (current === '/') page.innerHTML = dashboardPage();
+  else if (current === '/commandes') page.innerHTML = ordersPage();
+  else if (current.startsWith('/commandes/nouvelle')) page.innerHTML = newOrderPage();
+  else if (current.startsWith('/commandes/')) page.innerHTML = orderDetailPage(current.split('/')[2]);
+  else if (current === '/livraisons') page.innerHTML = deliveriesPage();
+  else if (current === '/catalogue') page.innerHTML = cataloguePage();
+  else if (current === '/equipe') page.innerHTML = teamPage();
+  else if (current === '/admin') page.innerHTML = adminPage();
+}
+
+function badge(st) { return `<span class="badge badge-${st}">${STATUS[st]}</span>`; }
+function addHistory(order, action, userName) {
+  order.history.unshift({ action, user: userName, at: new Date().toLocaleString('fr-FR') });
+}
+
+/* ---------- Tableau de bord ---------- */
+function dashboardPage() {
+  const u = me();
+  const isAdmin = u.role === 'admin';
+  const mine = state.orders.filter(o => isAdmin || o.company_id === u.company_id);
+  const stats = {
+    today: mine.filter(o => o.delivery_date === today() && o.status !== 'livree' && o.status !== 'annulee').length,
+    pending: mine.filter(o => ['nouvelle','attente_confirmation','attente_paiement'].includes(o.status)).length,
+    tomorrow: mine.filter(o => o.delivery_date === tomorrow() && o.status !== 'livree' && o.status !== 'annulee'),
+  };
+  const recent = [...mine].sort((a,b) => b.id - a.id).slice(0, 8);
+  const perCompany = state.companies.map(c => {
+    const co = state.orders.filter(o => o.company_id === c.id);
+    const pending = co.filter(o => ['nouvelle','attente_confirmation','attente_paiement'].includes(o.status)).length;
+    const ca = co.filter(o => o.status !== 'annulee').reduce((s,o)=>s+o.amount,0);
+    return `<tr><td><strong>${esc(c.name)}</strong></td><td>${co.length}</td><td>${pending}</td><td>${fmt(ca)}</td><td>${esc(c.subscription_status)}</td></tr>`;
+  }).join('');
+  return `
+    <h1>${isAdmin ? 'Vue globale — toutes les entreprises' : 'Tableau de bord — ' + esc(myCompany().name)}</h1>
+    ${isAdmin ? '' : `<p class="muted">Vous ne voyez que les données de <strong>${esc(myCompany().name)}</strong>.</p>`}
+    <div class="cards">
+      <div class="card"><div class="card-num">${stats.today}</div>Commandes du jour</div>
+      <div class="card"><div class="card-num">${stats.pending}</div>En attente</div>
+      <div class="card"><div class="card-num">${stats.tomorrow.length}</div>Livraisons demain</div>
+      <div class="card"><div class="card-num">${fmt(stats.tomorrow.reduce((s,o)=>s+o.amount,0))}</div>À encaisser demain</div>
+    </div>
+    ${isAdmin ? `
+    <h2>Synthèse par entreprise</h2>
+    <table>
+      <thead><tr><th>Entreprise</th><th>Commandes</th><th>En attente</th><th>Chiffre d'affaires</th><th>Abonnement</th></tr></thead>
+      <tbody>${perCompany}</tbody>
+    </table>` : ''}
+    <h2>Dernières commandes</h2>
+    <table>
+      <thead><tr><th>N°</th>${isAdmin ? '<th>Entreprise</th>' : ''}<th>Client</th><th>Statut</th><th>Montant</th><th>Livraison</th></tr></thead>
+      <tbody>${recent.map(o => {
+        const co = state.companies.find(c => c.id === o.company_id);
+        return `<tr><td><a href="#" onclick="navigate('/commandes/${o.id}');return false">#${o.id}</a></td>
+          ${isAdmin ? `<td>${esc(co ? co.name : '—')}</td>` : ''}
+          <td>${esc(o.client_name)}</td><td>${badge(o.status)}</td><td>${fmt(o.amount)}</td><td>${o.delivery_date || '—'}</td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    ${isAdmin ? '' : `<p><a class="btn" href="#" onclick="navigate('/commandes/nouvelle');return false">+ Nouvelle commande</a></p>`}`;
+}
+
+/* ---------- Liste des commandes ---------- */
+let orderFilter = '';
+function ordersPage() {
+  const u = me();
+  const isAdmin = u.role === 'admin';
+  let list = state.orders.filter(o => isAdmin || o.company_id === u.company_id);
+  if (orderFilter) list = list.filter(o => o.status === orderFilter);
+  list.sort((a,b) => b.id - a.id);
+  const links = ['<a href="#" class="' + (orderFilter ? '' : 'active') + '" onclick="orderFilter=\'\';navigate(\'/commandes\');return false">Toutes</a>']
+    .concat(STATUS_ORDER.map(s => `<a href="#" class="${orderFilter === s ? 'active' : ''}" onclick="orderFilter='${s}';navigate('/commandes');return false">${STATUS[s]}</a>`));
+  const rows = list.map(o => {
+    const zone = state.zones.find(z => z.id === o.zone_id);
+    const courier = state.users.find(x => x.id === o.courier_id);
+    const co = state.companies.find(c => c.id === o.company_id);
+    return `<tr><td><a href="#" onclick="navigate('/commandes/${o.id}');return false">#${o.id}</a></td>
+      ${isAdmin ? `<td>${esc(co ? co.name : '—')}</td>` : ''}
+      <td>${esc(o.client_name)}<br><small>${esc(o.client_phone)}</small></td>
+      <td>${fmt(o.amount)}</td><td>${esc(zone ? zone.name : '—')}</td><td>${o.delivery_date || '—'}</td>
+      <td>${esc(courier ? courier.name : '—')}</td><td>${badge(o.status)}</td></tr>`;
+  }).join('');
+  return `
+    <h1>Commandes</h1>
+    ${isAdmin ? '<p class="muted">Vue globale : toutes les entreprises.</p>' : ''}
+    <p class="filters">${links.join('')}</p>
+    <table>
+      <thead><tr><th>N°</th>${isAdmin ? '<th>Entreprise</th>' : ''}<th>Client</th><th>Montant</th><th>Zone</th><th>Livraison</th><th>Livreur</th><th>Statut</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${isAdmin ? '' : `<p><a class="btn" href="#" onclick="navigate('/commandes/nouvelle');return false">+ Nouvelle commande</a></p>`}`;
+}
+
+/* ---------- Nouvelle commande ---------- */
+function newOrderPage() {
+  const u = me();
+  const products = state.products.filter(p => p.company_id === u.company_id);
+  const zones = state.zones.filter(z => z.company_id === u.company_id);
+  const couriers = state.users.filter(x => x.company_id === u.company_id && x.role === 'livreur');
+  return `
+    <h1>Nouvelle commande</h1>
+    <form class="form-card" onsubmit="createOrder(event)">
+      <label>Nom du client</label><input name="client_name" required placeholder="Ex. Grace Mbuyi">
+      <label>Téléphone du client</label><input name="client_phone" required placeholder="+243 …">
+      <label>Produit</label><select name="product_id" required>
+        ${products.map(p => `<option value="${p.id}">${esc(p.name)} (${fmt(p.price)})</option>`).join('')}</select>
+      <label>Quantité</label><input type="number" name="qty" value="1" min="1" required>
+      <div class="row">
+        <div><label>Zone de livraison</label><select name="zone_id">
+          ${zones.map(z => `<option value="${z.id}">${esc(z.name)} (${fmt(z.fee)})</option>`).join('')}</select></div>
+        <div><label>Date de livraison</label><input type="date" name="delivery_date" value="${tomorrow()}"></div>
+      </div>
+      <label>Adresse</label><input name="address" placeholder="Avenue, n°, repère…">
+      <div class="row">
+        <div><label>Statut</label><select name="status">
+          ${STATUS_ORDER.map(s => `<option value="${s}"${s === 'nouvelle' ? ' selected' : ''}>${STATUS[s]}</option>`).join('')}</select></div>
+        <div><label>Livreur</label><select name="courier_id"><option value="">—</option>
+          ${couriers.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+      </div>
+      <label>Notes</label><textarea name="notes" rows="2" placeholder="Instructions particulières…"></textarea>
+      <button type="submit">Enregistrer la commande</button>
+    </form>`;
+}
+
+function createOrder(ev) {
+  ev.preventDefault();
+  const f = ev.target;
+  const u = me();
+  const product = state.products.find(p => p.id === +f.product_id.value);
+  const qty = Math.max(1, parseInt(f.qty.value, 10) || 1);
+  const zone = state.zones.find(z => z.id === +f.zone_id.value);
+  const amount = product.price * qty + (zone ? zone.fee : 0);
+  const order = {
+    id: state.nextId++, company_id: u.company_id,
+    client_name: f.client_name.value, client_phone: f.client_phone.value,
+    items: [{ product_id: product.id, name: product.name, qty, unit_price: product.price }],
+    amount, zone_id: +f.zone_id.value, address: f.address.value,
+    delivery_date: f.delivery_date.value, courier_id: f.courier_id.value ? +f.courier_id.value : null,
+    status: f.status.value, notes: f.notes.value,
+    created_at: new Date().toLocaleString('fr-FR'), history: [],
+  };
+  addHistory(order, 'Commande créée', u.name);
+  state.orders.push(order); save();
+  navigate('/commandes/' + order.id);
+}
+
+/* ---------- Détail d'une commande ---------- */
+function orderDetailPage(id) {
+  const u = me();
+  const o = state.orders.find(x => x.id === +id && x.company_id === u.company_id);
+  if (!o) return '<p>Commande introuvable.</p>';
+  const zone = state.zones.find(z => z.id === o.zone_id);
+  const courier = state.users.find(x => x.id === o.courier_id);
+  const couriers = state.users.filter(x => x.company_id === u.company_id && x.role === 'livreur');
+  const itemsHtml = o.items.map(i => `<li>${esc(i.name)} — ${i.size ? 'taille ' + esc(i.size) + ', ' : ''}${i.color ? esc(i.color) + ', ' : ''}qté ${i.qty} × ${fmt(i.unit_price)}</li>`).join('');
+  return `
+    <p><a href="#" onclick="navigate('/commandes');return false">← Retour aux commandes</a></p>
+    <h1>Commande #${o.id} ${badge(o.status)}</h1>
+    <div class="two-cols">
+      <div class="form-card">
+        <h2>Détails</h2>
+        <p><strong>Client :</strong> ${esc(o.client_name)} (${esc(o.client_phone)})</p>
+        <ul>${itemsHtml}</ul>
+        <p><strong>Montant :</strong> ${fmt(o.amount)}${zone ? ` <small>(dont livraison ${fmt(zone.fee)} — ${esc(zone.name)})</small>` : ''}</p>
+        <p><strong>Adresse :</strong> ${esc(o.address || '—')}</p>
+        <p><strong>Livraison :</strong> ${o.delivery_date || '—'} · <strong>Livreur :</strong> ${esc(courier ? courier.name : '—')}</p>
+        <p><strong>Notes :</strong> ${esc(o.notes || '—')}</p>
+        <form class="row-form" onsubmit="updateStatus(event, ${o.id})">
+          <select name="status">${STATUS_ORDER.map(s => `<option value="${s}"${s === o.status ? ' selected' : ''}>${STATUS[s]}</option>`).join('')}</select>
+          <button type="submit">Mettre à jour le statut</button>
+        </form>
+        <form class="row-form" onsubmit="assignCourier(event, ${o.id})">
+          <select name="courier_id"><option value="">—</option>
+            ${couriers.map(c => `<option value="${c.id}"${o.courier_id === c.id ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+          <button type="submit">Assigner le livreur</button>
+        </form>
+      </div>
+      <div class="form-card">
+        <h2>Historique</h2>
+        <ul class="history">
+          ${o.history.map(h => `<li><strong>${esc(h.action)}</strong><br><small>${esc(h.at)}${h.user ? ' — ' + esc(h.user) : ''}</small></li>`).join('')}
+        </ul>
+      </div>
+    </div>`;
+}
+
+function updateStatus(ev, id) {
+  ev.preventDefault();
+  const u = me();
+  const o = state.orders.find(x => x.id === id);
+  const old = STATUS[o.status] || o.status;
+  o.status = ev.target.status.value;
+  addHistory(o, `Statut : ${old} → ${STATUS[o.status]}`, u.name);
+  save(); navigate('/commandes/' + id);
+}
+function assignCourier(ev, id) {
+  ev.preventDefault();
+  const u = me();
+  const o = state.orders.find(x => x.id === id);
+  o.courier_id = ev.target.courier_id.value ? +ev.target.courier_id.value : null;
+  addHistory(o, o.courier_id ? 'Livreur assigné' : 'Livreur retiré', u.name);
+  save(); navigate('/commandes/' + id);
+}
+
+/* ---------- Livraisons de demain ---------- */
+function deliveriesPage() {
+  const u = me();
+  const isCourier = u.role === 'livreur';
+  const isAdmin = u.role === 'admin';
+  let list = state.orders.filter(o => o.delivery_date === tomorrow());
+  if (isCourier) list = list.filter(o => o.courier_id === u.id);
+  else if (!isAdmin) list = list.filter(o => o.company_id === u.company_id);
+  const alerts = list.filter(o => ['attente_confirmation','attente_paiement','nouvelle'].includes(o.status));
+  const total = list.filter(o => o.status !== 'annulee').reduce((s, o) => s + o.amount, 0);
+  const title = isCourier ? 'Mes livraisons de demain' : 'Livraisons de demain';
+  const rows = list.map(o => {
+    const zone = state.zones.find(z => z.id === o.zone_id);
+    const courier = state.users.find(x => x.id === o.courier_id);
+    const company = state.companies.find(c => c.id === o.company_id);
+    return `<tr><td><a href="#" onclick="navigate('/commandes/${o.id}');return false">#${o.id}</a></td>
+      ${isAdmin ? `<td>${esc(company ? company.name : '—')}</td>` : ''}
+      <td>${esc(o.client_name)}<br><small>${esc(o.client_phone)}</small></td>
+      <td>${esc(zone ? zone.name : '—')}</td><td>${esc(courier ? courier.name : '—')}</td>
+      <td>${esc(o.address || '—')}</td><td>${fmt(o.amount)}</td><td>${badge(o.status)}</td></tr>`;
+  }).join('');
+  return `
+    <h1>${title}</h1>
+    <p class="muted">Date : ${tomorrow()}${isCourier ? ' — commandes qui vous sont assignées' : ''}</p>
+    ${alerts.length ? `<div class="alert">⚠️ ${alerts.length} commande(s) de demain pas encore confirmée(s) ou pas payée(s) : ${alerts.map(a => `<a href="#" onclick="navigate('/commandes/${a.id}');return false">#${a.id}</a>`).join(', ')}</div>` : ''}
+    <div class="cards">
+      <div class="card"><div class="card-num">${list.length}</div>Total des commandes</div>
+      <div class="card"><div class="card-num">${fmt(total)}</div>Montant à encaisser</div>
+    </div>
+    <table>
+      <thead><tr><th>N°</th>${isAdmin ? '<th>Entreprise</th>' : ''}<th>Client</th><th>Zone</th><th>Livreur</th><th>Adresse</th><th>Montant</th><th>Statut</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+/* ---------- Catalogue ---------- */
+function cataloguePage() {
+  const u = me();
+  const products = state.products.filter(p => p.company_id === u.company_id);
+  const zones = state.zones.filter(z => z.company_id === u.company_id);
+  const prodRows = products.map(p => {
+    const vs = state.variants.filter(v => v.product_id === p.id)
+      .map(v => `<span class="chip">${esc(v.size || '—')} / ${esc(v.color || '—')} · stock ${v.stock}</span>`).join(' ');
+    return `<tr><td>${esc(p.name)}</td><td>${fmt(p.price)}</td><td>${esc(p.description || '')}</td><td>${vs}</td></tr>`;
+  }).join('');
+  return `
+    <h1>Catalogue et réglages</h1>
+    <div class="two-cols">
+      <div class="form-card">
+        <h2>Produits</h2>
+        <table><thead><tr><th>Nom</th><th>Prix</th><th>Description</th><th>Variantes (taille / couleur · stock)</th></tr></thead>
+        <tbody>${prodRows}</tbody></table>
+        <h3>Ajouter un produit</h3>
+        <form onsubmit="addProduct(event)">
+          <label>Nom</label><input name="name" required>
+          <label>Prix ($)</label><input type="number" step="0.01" name="price" required>
+          <label>Description</label><input name="description">
+          <button type="submit">Ajouter</button>
+        </form>
+      </div>
+      <div class="form-card">
+        <h2>Zones de livraison</h2>
+        <table><thead><tr><th>Zone</th><th>Frais</th></tr></thead>
+        <tbody>${zones.map(z => `<tr><td>${esc(z.name)}</td><td>${fmt(z.fee)}</td></tr>`).join('')}</tbody></table>
+        <h3>Ajouter une zone</h3>
+        <form onsubmit="addZone(event)">
+          <label>Nom de la zone</label><input name="name" required>
+          <label>Frais ($)</label><input type="number" step="0.01" name="fee" value="0">
+          <button type="submit">Ajouter</button>
+        </form>
+      </div>
+    </div>`;
+}
+function addProduct(ev) {
+  ev.preventDefault();
+  const u = me(), f = ev.target;
+  const p = { id: Date.now(), company_id: u.company_id, name: f.name.value, price: parseFloat(f.price.value) || 0, description: f.description.value };
+  state.products.push(p); save(); navigate('/catalogue');
+}
+function addZone(ev) {
+  ev.preventDefault();
+  const u = me(), f = ev.target;
+  state.zones.push({ id: Date.now(), company_id: u.company_id, name: f.name.value, fee: parseFloat(f.fee.value) || 0 });
+  save(); navigate('/catalogue');
+}
+
+/* ---------- Équipe ---------- */
+function teamPage() {
+  const u = me();
+  const users = state.users.filter(x => x.company_id === u.company_id).sort((a,b) => a.name.localeCompare(b.name));
+  return `
+    <h1>Gestion de l'équipe</h1>
+    <table>
+      <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th></tr></thead>
+      <tbody>${users.map(x => `<tr><td>${esc(x.name)}</td><td>${esc(x.email)}</td><td>${esc(x.role)}</td></tr>`).join('')}</tbody>
+    </table>
+    <h2>Ajouter un membre</h2>
+    <form class="form-card" onsubmit="addMember(event)">
+      <label>Nom</label><input name="name" required>
+      <label>Email</label><input type="email" name="email" required>
+      <label>Mot de passe</label><input type="password" name="password" required>
+      <label>Rôle</label><select name="role"><option value="agent">Agent</option><option value="livreur">Livreur</option><option value="owner">Propriétaire</option></select>
+      <button type="submit">Ajouter</button>
+    </form>`;
+}
+function addMember(ev) {
+  ev.preventDefault();
+  const u = me(), f = ev.target;
+  if (state.users.some(x => x.email === f.email.value)) { alert('Email déjà utilisé.'); return; }
+  state.users.push({ id: Date.now(), company_id: u.company_id, name: f.name.value, email: f.email.value, role: f.role.value, password: f.password.value });
+  save(); navigate('/equipe');
+}
+
+/* ---------- Administration (admin produit) ---------- */
+function adminPage() {
+  const rows = state.companies.map(c => {
+    const uc = state.users.filter(x => x.company_id === c.id).length;
+    const oc = state.orders.filter(o => o.company_id === c.id).length;
+    return `<tr><td>${esc(c.name)}</td><td>${esc(c.subscription_status)}</td><td>${esc(c.subscription_plan)}</td><td>${esc(c.trial_end || '—')}</td><td>${uc}</td><td>${oc}</td></tr>`;
+  }).join('');
+  return `
+    <h1>Espace administrateur</h1>
+    <p class="muted">Liste des entreprises clientes et abonnements.</p>
+    <table>
+      <thead><tr><th>Entreprise</th><th>Abonnement</th><th>Plan</th><th>Fin d'essai</th><th>Utilisateurs</th><th>Commandes</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <h2>Ajouter une entreprise</h2>
+    <form class="form-card" onsubmit="addCompany(event)">
+      <label>Nom de l'entreprise</label><input name="name" required>
+      <label>Statut de l'abonnement</label>
+      <select name="subscription_status"><option value="essai">Essai</option><option value="actif">Actif</option><option value="suspendu">Suspendu</option></select>
+      <button type="submit">Ajouter</button>
+    </form>`;
+}
+function addCompany(ev) {
+  ev.preventDefault();
+  const f = ev.target;
+  state.companies.push({ id: Date.now(), name: f.name.value, subscription_status: f.subscription_status.value, subscription_plan: 'Essai', trial_end: null });
+  save(); navigate('/admin');
+}
+
+/* ================= Connexion ================= */
+document.getElementById('login-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (doLogin(email, password)) {
+    document.getElementById('login-error').hidden = true;
+    navigate('/');
+  } else {
+    document.getElementById('login-error').hidden = false;
+  }
+});
+
+/* ================= Démarrage ================= */
+load();
+if (me()) navigate('/');
+else showLogin();
+</script>
+</body>
+</html>
