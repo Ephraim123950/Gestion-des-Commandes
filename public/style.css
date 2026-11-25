@@ -717,10 +717,15 @@ body.auth::before {
   }
 
   .sidebar {
-    position: static;
+    position: sticky;
+    z-index: 10;
+    top: 0;
     width: 100%;
     height: auto;
     flex-shrink: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
   }
 
   .company-name {
@@ -728,6 +733,7 @@ body.auth::before {
   }
 
   .side-nav {
+    grid-column: 1 / -1;
     flex-direction: row;
     flex-wrap: nowrap;
     flex: 0 1 auto;
@@ -744,12 +750,20 @@ body.auth::before {
 
   .sidebar-footer {
     margin: 0;
-    border-top: 1px solid #1e293b;
+    border-top: 0;
+    padding: 10px 16px;
   }
 
   .content {
     max-width: none;
     padding: 22px 18px;
+  }
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .row,
@@ -777,15 +791,15 @@ body.auth::before {
     font-size: 14px;
   }
 
+  body.auth {
+    align-items: flex-start;
+  }
+
   .content {
     padding: 18px 14px;
   }
 
   table {
-    display: block;
-    max-width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     white-space: nowrap;
   }
 
@@ -808,8 +822,11 @@ body.auth::before {
   }
 
   .sidebar-footer {
-    width: 100%;
-    padding: 10px 16px;
+    padding: 8px 12px;
+  }
+
+  .user-meta {
+    max-width: 112px;
   }
 
   .cards {
@@ -835,6 +852,14 @@ body.auth::before {
     padding: 30px 22px;
     margin: 14px auto;
     border-radius: 16px;
+  }
+
+  .form-card input,
+  .form-card select,
+  .form-card textarea,
+  .row-form select,
+  .login-box input {
+    font-size: 16px;
   }
 
   .login-box h1 {
@@ -880,6 +905,20 @@ body.auth::before {
 @media (max-width: 380px) {
   .cards {
     grid-template-columns: 1fr;
+  }
+
+  .brand {
+    gap: 7px;
+    padding-right: 8px;
+    font-size: 1em;
+  }
+
+  .brand-icon {
+    font-size: 1.3em;
+  }
+
+  .user-meta {
+    display: none;
   }
 
   .content {
